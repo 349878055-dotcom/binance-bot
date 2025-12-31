@@ -14,29 +14,34 @@ exchange = ccxt.okx(keys)
 def fetch_data():
     global exchange 
     try:
-        # --- 2. 路径重塑：精确锁定 OE V5 官方端点 ---
-        # 修正：去掉了导致 404 的 'platform-'
-        endpoint = 'market/liquidation-orders'
+        # 逻辑映射：CCXT 内部会根据 'public' 自动定位到 market 类别
+        # 因此端点只需写最后一段，避免路径叠加导致的 404
+        endpoint = 'liquidation-orders' 
         params = {
-            'instType': 'SWAP', # 锁定永续合约
-            'limit': 10         # 限制返回条数，降噪
+            'instType': 'SWAP',
+            'limit': 5
         }
         
-        # 使用 request 底层通用方法，彻底无视 CCXT 版本代差
-        response = exchange.request(endpoint, 'public', 'GET', params)
+        # 显式锁定：使用封装好的 market 公开接口请求
+        response = exchange.publicGetMarketLiquidationOrders(params)
         
         data = response.get('data', [])
         if data:
-            # 逻辑映射：实时数据反馈
-            print(f"✅ 链路全通 | 捕获到 {len(data)} 条最新清算记录", flush=True)
-            for order in data[:3]: # 打印前三条精简信息
-                print(f"🚩 实时清算: {order['instId']} | 价格: {order['bkPx']} | 数量: {order['sz']}", flush=True)
+            print(f"✅ 链路接通 | 捕获到 {len(data)} 条最新清算订单", flush=True)
+            o = data[0]
+            print(f"🚩 实时: {o['instId']} | 价格: {o['bkPx']} | 数量: {o['sz']}", flush=True)
         else:
-            print("🌑 链路全通 | 市场平静，无大规模清算", flush=True)
+            print("🌑 链路接通 | 此时段无大规模清算", flush=True)
 
     except Exception as e:
-        # 捕获 404/401 等协议层面波动
-        print(f"⚠️ 协议波动: {str(e)}", flush=True)
+        # 如果这种写法依然被 Render 里的旧库报 AttributeError，
+        # 则使用下面的万能底层命令（注意路径：去掉了开头的 market/）
+        try:
+            endpoint_fallback = 'liquidation-orders'
+            res = exchange.request(endpoint_fallback, 'public', 'GET', params)
+            print(f"✅ 万能链路接通 | 数据量: {len(res.get('data', []))}", flush=True)
+        except Exception as e2:
+            print(f"⚠️ 协议深度波动: {str(e2)}", flush=True)
 
 def main():
     # 捅破缓冲区：实时输出
@@ -52,3 +57,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
