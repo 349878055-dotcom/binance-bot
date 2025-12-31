@@ -10,28 +10,29 @@ keys = {
     'options': {'defaultType': 'swap'}
 }
 exchange = ccxt.okx(keys)
+
 def fetch_data():
-    # 逻辑映射：通过 global 关键字接管外部变量权限
     global exchange 
     try:
+        # 3. 核心重塑：使用通用请求（硬连接）
+        # 这是万能钥匙，不吃 CCXT 的版本更新，直接对接 OE 的 V5 接口
+        endpoint = 'market/platform-liquidation-orders'
         params = {'instType': 'SWAP'}
-        # 显式 V5 端点调用
-        response = exchange.publicGetMarketPlatformLiquidationOrders(params)
+        
+        # 这种写法在任何 CCXT 版本中都绝对有效
+        response = exchange.request(endpoint, 'public', 'GET', params)
         
         data = response.get('data', [])
         if data:
-            print(f"✅ 链路正常 | 捕获到 {len(data)} 条最新清算订单", flush=True)
-            for order in data[:3]: # 只打印前3条，降噪
-                print(f"🚩 预警: {order['instId']} | 价格: {order['bkPx']}", flush=True)
+            print(f"✅ 链路接通 | 捕获到 {len(data)} 条清算订单", flush=True)
         else:
-            print("🌑 链路正常 | 此时段无大规模清算", flush=True)
+            print("🌑 链路接通 | 市场平静，无大规模清算", flush=True)
 
     except Exception as e:
-        print(f"⚠️ 链路波动: {str(e)}", flush=True)
+        print(f"⚠️ 协议波动: {str(e)}", flush=True)
 
 def main():
-    # 强行刷新缓冲区：手动捅破静默
-    print("🚀 系统入位，主权接管开始...", flush=True)
+    print("🚀 系统入位，逻辑全线接通...", flush=True)
     while True:
         try:
             fetch_data()
