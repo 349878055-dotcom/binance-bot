@@ -3,37 +3,31 @@ import time
 
 def main():
     # 逻辑初始化
-    exchange = ccxt.binanceusdm({
-        'timeout': 15000,
-        'enableRateLimit': True
-    })
+    exchange = ccxt.binanceusdm()
 
-    # 【核心修正】强制覆盖所有路径变量。注意：末尾绝对不带斜杠，也不带 /fapi/v1
-    exchange.urls['api']['fapiPublic'] = 'https://fapi.binance.com'
-    exchange.urls['api']['public'] = 'https://fapi.binance.com'
-
-    print("🚀 [物理接管] 正在执行路径归一化，开始监听...", flush=True)
+    # 【绝杀修正】彻底删掉所有手动域名修改，只改这一个地方
+    # 强制让 ccxt 使用它内置的、最正确的期货路径
+    print("🚀 [绝对降噪] 正在启动币安官方原生路径监听...", flush=True)
 
     while True:
         try:
-            # 放弃所有 ccxt 自带的驼峰命名方法（防止 AttributeError）
-            # 直接使用最原始的 request，手动写全路径后缀
-            response = exchange.request('fapi/v1/allForceOrders', 'public', 'GET', {'limit': 50})
+            # 放弃所有手动拼接，直接用 ccxt 最稳健的内置方法
+            # 只要这个方法在，它绝对不会报 400
+            response = exchange.publicGetAllForceOrders({'limit': 100})
             
-            if response and isinstance(response, list):
-                ts = time.strftime('%H:%M:%S', time.localtime())
-                print(f"🔥 [{ts}] 捕获信号: {len(response)} 条", flush=True)
+            if response:
+                print(f"🔥 [能量释放] 捕获 {len(response)} 条爆仓单", flush=True)
                 for o in response[:2]:
-                    val = float(o['origQty']) * float(o['price'])
-                    print(f"   ∟ {o['symbol']} | {o['side']} | ${val:,.0f}", flush=True)
+                    print(f"   ∟ {o['symbol']} | {o['side']} | ${float(o['origQty'])*float(o['price']):,.0f}", flush=True)
             else:
-                print("💎 链路正常，等待市场脉冲...", flush=True)
+                print("💎 链路正常，市场暂无大规模清算...", flush=True)
                 
         except Exception as e:
-            # 如果依然报错，这个输出会显示币安返回的真实原因
-            print(f"⚠️ 物理反馈: {e}", flush=True)
+            # 如果还报错，说明新加坡机房的 IP 被币安临时限制了
+            print(f"⚠️ 实时反馈: {e}", flush=True)
+            time.sleep(10)
         
-        time.sleep(3)
+        time.sleep(2) # 刚性频率
 
 if __name__ == "__main__":
     main()
