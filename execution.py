@@ -1,35 +1,34 @@
 import ccxt
 import time
-import os
+import sys
 
 def main():
-    # 云端环境下，物理链路是天然打通的，无需任何代理配置
+    # 付费档享受独享带宽，无需任何代理，直连官方节点
     exchange = ccxt.binanceusdm({
-        'timeout': 20000,
+        'timeout': 15000,
         'enableRateLimit': True,
         'options': {'defaultType': 'future'}
     })
 
-    print("🚀 [云端主权已锁定] 正在实时同步全球强平订单流...", flush=True)
+    print("🚀 [云端主权接管] 付费通道已建立，开始高频监听...", flush=True)
 
     while True:
         try:
-            # 获取全网实时强平单
-            response = exchange.request('allForceOrders', 'public', 'GET', {'limit': 100})
+            # 获取实时清算（黄线）
+            orders = exchange.request('allForceOrders', 'public', 'GET', {'limit': 50})
             
-            if response:
-                print(f"🔥 [脉冲捕获] 实时信号：{len(response)} 条", flush=True)
-                for order in response[:5]:
-                    symbol = order['symbol']
-                    side = "🔴 多头坍缩" if order['side'] == 'SELL' else "🟢 空头炸裂"
-                    val = float(order['origQty']) * float(order['price'])
-                    print(f"   ∟ [{symbol}] {side} | 规模: ${val:,.0f}", flush=True)
+            if orders:
+                ts = time.strftime('%H:%M:%S', time.localtime())
+                print(f"🔥 [{ts}] 实时溢出：{len(orders)} 条强平", flush=True)
+                for o in orders[:5]:
+                    val = float(o['origQty']) * float(o['price'])
+                    print(f"   ∟ {o['symbol']} | {o['side']} | ${val:,.0f}", flush=True)
             
         except Exception as e:
-            # 如果云端也报错，通常是 API 频率限制，无需担心物理断连
-            print(f"⚠️ 系统震荡反馈: {e}", flush=True)
+            # 即使有暂时的网络波动，循环也会自动重启
+            print(f"⚠️ 链路震荡反馈: {e}", flush=True)
         
-        time.sleep(2.5) # 频率锚定，防止 IP 被临时灰度
+        time.sleep(2) # 付费档可以尝试更短的间隔，如 1-2 秒
 
 if __name__ == "__main__":
     main()
