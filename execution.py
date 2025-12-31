@@ -2,34 +2,36 @@ import ccxt
 import time
 
 def main():
-    # 逻辑归零：不依赖 CCXT 的自动寻址，手动强插接口
+    # 逻辑锁定：初始化实例
     exchange = ccxt.binanceusdm({
-        'timeout': 15000,
+        'timeout': 20000,
         'enableRateLimit': True
     })
 
-    # 暴力修正：彻底覆盖 CCXT 的所有寻址逻辑，强制指向期货端点
-    exchange.urls['api']['fapiPublic'] = 'https://fapi.binance.com/fapi/v1'
-    exchange.urls['api']['public'] = 'https://fapi.binance.com/fapi/v1'
+    # 物理锁定：强制定义基础域名
+    # 注意：后面不带 /fapi/v1，由 request 方法自动补全
+    exchange.urls['api']['public'] = 'https://fapi.binance.com'
 
-    print("🚀 [绝对主权锁定] 目标：fapi.binance.com", flush=True)
+    print("🚀 [主权接管] 链路已重组。目标：期货强平流", flush=True)
 
     while True:
         try:
-            # 使用更底层的 fapiPublicGetAllForceOrders 
-            # 这样 ccxt 会强制去匹配 fapi 前缀
-            response = exchange.fapiPublic_get_allforceorders({'limit': 50})
+            # 暴力穿透：直接调用 /fapi/v1/allForceOrders
+            # 这是最稳健的写法，避开了所有 AttributeError 风险
+            params = {'limit': 50}
+            response = exchange.fapiPublicGetAllForceOrders(params)
             
             if response:
-                print(f"🔥 捕获信号: {len(response)} 条", flush=True)
-                for o in response[:2]:
-                    print(f"   ∟ {o['symbol']} | ${float(o['origQty'])*float(o['price']):,.0f}", flush=True)
+                print(f"🔥 [爆仓信号] 捕获 {len(response)} 条数据", flush=True)
+                for o in response[:3]:
+                    val = float(o['origQty']) * float(o['price'])
+                    print(f"   ∟ {o['symbol']} | {o['side']} | 价值: ${val:,.0f}", flush=True)
             else:
-                print("💎 链路正常，无溢出数据...", flush=True)
+                print("💎 链路正常，当前市场平静...", flush=True)
                 
         except Exception as e:
-            # 这里的报错如果还包含 api.binance.com，说明你代码压根没改成功
-            print(f"⚠️ 实时反馈: {e}", flush=True)
+            # 捕获异常，输出真实路径信息
+            print(f"⚠️ 链路反馈: {e}", flush=True)
         
         time.sleep(3)
 
