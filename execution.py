@@ -2,38 +2,35 @@ import ccxt
 import time
 
 def main():
-    # 逻辑锁定：初始化实例
+    # 逻辑归零：只把 ccxt 当成一个授权和连接工具
     exchange = ccxt.binanceusdm({
-        'timeout': 20000,
+        'timeout': 15000,
         'enableRateLimit': True
     })
 
-    # 物理锁定：强制定义基础域名
-    # 注意：后面不带 /fapi/v1，由 request 方法自动补全
-    exchange.urls['api']['public'] = 'https://fapi.binance.com'
-
-    print("🚀 [主权接管] 链路已重组。目标：期货强平流", flush=True)
+    print("🚀 [物理接管] 绕过所有封装属性，直接请求底层 API 路径...", flush=True)
 
     while True:
         try:
-            # 暴力穿透：直接调用 /fapi/v1/allForceOrders
-            # 这是最稳健的写法，避开了所有 AttributeError 风险
-            params = {'limit': 50}
-            response = exchange.fapiPublicGetAllForceOrders(params)
+            # 【核心修正】不再调用 exchange.xxxx()，直接用 request 手动指定路径
+            # 这叫“路径击穿”，是程序员最后的保底手段
+            response = exchange.request('allForceOrders', 'fapiPublic', 'GET', {'limit': 100})
             
-            if response:
-                print(f"🔥 [爆仓信号] 捕获 {len(response)} 条数据", flush=True)
+            if response and isinstance(response, list):
+                print(f"🔥 [确定性捕获] 实时强平信号：{len(response)} 条", flush=True)
                 for o in response[:3]:
                     val = float(o['origQty']) * float(o['price'])
                     print(f"   ∟ {o['symbol']} | {o['side']} | 价值: ${val:,.0f}", flush=True)
             else:
-                print("💎 链路正常，当前市场平静...", flush=True)
+                print("💎 链路正常，无爆仓能量释放...", flush=True)
                 
         except Exception as e:
-            # 捕获异常，输出真实路径信息
-            print(f"⚠️ 链路反馈: {e}", flush=True)
+            # 捕获报错并输出，如果是 429 说明太快了，如果是 404 说明路径写错了
+            print(f"⚠️ 物理反馈: {e}", flush=True)
+            if "429" in str(e):
+                time.sleep(60) # 被限频则静默 1 分钟
         
-        time.sleep(3)
+        time.sleep(3) # 降噪频率
 
 if __name__ == "__main__":
     main()
