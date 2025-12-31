@@ -10,45 +10,44 @@ keys = {
     'options': {'defaultType': 'swap'}
 }
 
-def main():
+def fetch_liquidation_orders():
+    """
+    针对 OKX V5 协议的硬核重写
+    摒弃旧的 public_get_public_liquidation_orders
+    """
     try:
-        # 物理并网：法兰克福节点连接 OKX
-        bot = ccxt.okx(keys)
-        bot.options['adjustForTimeDifference'] = True # 解决你刚才遇到的时间同步问题
-        print("🚀 [收割引擎并网] 身份验证成功！正在法兰克福监听小众市场...", flush=True)
+        # 显式映射：OE V5 市场清算数据端点
+        params = {'instType': 'SWAP'} # 监控永续合约
+        
+        # 1.0 刚性调用：使用当前版本 CCXT 支持的显式方法
+        response = exchange.publicGetMarketPlatformLiquidationOrders(params)
+        
+        data = response.get('data', [])
+        if data:
+            for order in data:
+                print(f"📡 清算预警: 币种={order['instId']} | 数量={order['sz']} | 价格={order['bkPx']}")
+        else:
+            print("📭 当前无清算订单数据溢出")
+            
+    except AttributeError:
+        print("❌ 协议映射失效：请检查 CCXT 版本，建议执行 pip install --upgrade ccxt")
     except Exception as e:
-        print(f"❌ 接入失败: {e}", flush=True)
-        return
+        print(f"⚠️ 链路波动: {str(e)}")
 
+def main():
+    print("🚀 系统入位，主权接管开始...")
     while True:
         try:
-            # 1. 随时计算：扫描全场强平信号
-            liq_orders = bot.public_get_public_liquidation_orders({
-                'instType': 'SWAP',
-                'limit': 20
-            })['data']
-
-            if liq_orders:
-                for order in liq_orders:
-                    symbol = order['instId']
-                    sz = float(order['sz'])
-                    
-                    # 2. 逻辑过滤：避开拥挤的 BTC/ETH，寻找二线币种的“裂缝”
-                    # 设定阈值：瞬间强平超过 500 张
-                    if "BTC" not in symbol and "ETH" not in symbol and sz > 500:
-                        print(f"🔥 [检测到坍缩] {symbol} | 能量: {sz} 张 | 正在捕捉超跌点...", flush=True)
-                        
-                        # --- 核心交易逻辑 ---
-                        # 计算当前余额，只用 5% 的头寸进行“几秒钟”的抢购
-                        # balance = bot.fetch_balance()
-                        # bot.create_market_buy_order(symbol, 头寸量)
-            else:
-                print("💎 扫描中：当前市场处于低噪声态...", flush=True)
-
+            # 逻辑映射：验证余额与清算数据
+            # balance = exchange.fetch_balance() # 如需监控余额可开启
+            fetch_liquidation_orders()
+            
+            # 强行留白：防止请求过快导致 IP 被锁
+            time.sleep(10) 
+            
         except Exception as e:
-            print(f"⚠️ 链路波动: {e}", flush=True)
-        
-        time.sleep(2) # 保持呼吸频率
+            print(f"🔥 核心逻辑溢出: {e}")
+            time.sleep(30)
 
 if __name__ == "__main__":
     main()
