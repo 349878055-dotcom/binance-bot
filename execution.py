@@ -9,7 +9,7 @@ keys = {
     'enableRateLimit': True,
     'options': {'defaultType': 'swap'}
 }
-
+exchange = ccxt.okx(keys)
 def fetch_data():
     # 逻辑映射：通过 global 关键字接管外部变量权限
     global exchange 
@@ -42,3 +42,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
