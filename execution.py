@@ -2,38 +2,41 @@ import requests
 import time
 
 def main():
-    # 路径 A: 币安期货 (看是否依然报 400/451)
-    bn_url = "https://fapi.binance.com/fapi/v1/allForceOrders"
-    # 路径 B: 欧易 (OKX) 公开接口 (验证物理链路是否通畅)
-    okx_url = "https://www.okx.com/api/v5/market/tickers?instType=SWAP"
+    # OKX 期货强平接口（无需私钥，公开数据）
+    # 逻辑：监听全网永续合约的爆仓单
+    url = "https://www.okx.com/api/v5/public/liquidation-orders"
+    
+    # 锚定变数：只盯永续合约 (SWAP)
+    params = {
+        'instType': 'SWAP',
+        'limit': 100
+    }
 
-    print("🚀 [全域对撞验证] 正在扫描：币安 vs 欧易...", flush=True)
+    print("🚀 [OKX 链路锁定] 物理连接正常，开始高频监听因果流...", flush=True)
 
     while True:
-        # --- 探测 1: 币安 (Binance) ---
         try:
-            bn_res = requests.get(bn_url, params={'limit': 10}, timeout=10)
-            if bn_res.status_code == 200:
-                print(f"🔥 [币安] 并网成功！捕获 {len(bn_res.json())} 条信号", flush=True)
+            response = requests.get(url, params=params, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json().get('data', [])
+                if data:
+                    # 按照因果律排序，展示最新的爆仓能量释放
+                    print(f"🔥 [能量释放] 捕获 {len(data)} 条实时强平", flush=True)
+                    for o in data[:3]:
+                        # 计算爆仓规模：张数 * 每张价值 (需要更精细计算，这里先展示核心维度)
+                        posSide = o.get('posSide', '未知')
+                        print(f"   ∟ {o['instId']} | {posSide}方向 | 总计: {o['sz']} 张", flush=True)
+                else:
+                    print("💎 链路正常，OKX 市场当前无大规模坍缩...", flush=True)
             else:
-                print(f"❌ [币安] 拦截：状态码 {bn_res.status_code} | 原因: {bn_res.text[:50]}", flush=True)
+                print(f"⚠️ 链路震荡反馈: {response.status_code}", flush=True)
+                
         except Exception as e:
-            print(f"⚠️ [币安] 链路崩溃: {e}", flush=True)
-
-        # --- 探测 2: 欧易 (OKX) ---
-        try:
-            okx_res = requests.get(okx_url, timeout=10)
-            if okx_res.status_code == 200:
-                # OKX 如果通了，说明你的法兰克福节点网络没问题
-                data = okx_res.json().get('data', [])
-                print(f"✅ [欧易] 验证通过！成功获取 {len(data)} 条行情数据", flush=True)
-            else:
-                print(f"❌ [欧易] 拦截：状态码 {okx_res.status_code}", flush=True)
-        except Exception as e:
-            print(f"⚠️ [欧易] 链路崩溃: {e}", flush=True)
-
-        print("-" * 30)
-        time.sleep(5)
+            print(f"⚠️ 物理拦截反馈: {e}", flush=True)
+        
+        # OKX 限速相对宽松，3秒一次进行降噪
+        time.sleep(3)
 
 if __name__ == "__main__":
     main()
